@@ -1,4 +1,4 @@
-mod utils;
+pub mod utils;
 use clap::Parser;
 use regex::Regex;
 use reqwest;
@@ -32,13 +32,24 @@ fn main() {
     }
 
     let version = args.version_to_install.as_ref().unwrap();
+    let version_str: String = "v".to_string() + version;
 
     match version.as_str() {
         "latest" => {
             println!("Installing latest version of Node.js");
         }
         _ => {
-            let res = find_installable_version(base_node_url, version.as_str());
+            let res = find_installable_version(base_node_url, &version_str);
+            match res {
+                Ok(v) => {
+                    println!("Version {} is available", v);
+                    let download_url = utils::node_utils::create_node_windows_download_url(base_node_url, &v);
+                    println!("Downloading from {}", download_url);
+                }
+                Err(e) => {
+                    println!("Error: {}", e);
+                }
+            }
         }
     }
 }
@@ -47,7 +58,7 @@ fn list_versions(base_node_url: &str) -> () {
     let all_versions = get_all_versions(base_node_url);
 
     let mut versions: Vec<String> = all_versions.unwrap();
-    versions.sort_by(|a, b| utils::node_version_compare_fn(a, b));
+    versions.sort_by(|a, b| utils::node_utils::node_version_compare_fn(a, b));
 
     println!("Available versions of Node.js:");
     for v in versions {
@@ -85,10 +96,10 @@ fn find_installable_version(
     base_node_url: &str,
     version: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // verify version is a valid versionstring, allowed version strings are 1.2.3 or 10.11.12
+    // verify version is a valid versionstring, allowed version strings are v1.2.3 or v10.11.12
     println!("Checking version string {}", version);
 
-    let re: Regex = Regex::new(r"^\d+\.\d+\.\d+$").unwrap();
+    let re = Regex::new(r"^v\d+\.\d+\.\d+$").unwrap();
 
     if !re.is_match(version) {
         println!("Invalid version string");
@@ -96,9 +107,8 @@ fn find_installable_version(
     }
 
     let all_versions: Vec<String> = get_all_versions(base_node_url)?;
-    let version_str: String = "v".to_string() + version;
 
-    if !all_versions.contains(&version_str) {
+    if !all_versions.contains(&version.to_string()) {
         println!("Version {} is not available", version);
         return Err("Version not available".into());
     }
