@@ -37,6 +37,17 @@ fn main() {
     match version.as_str() {
         "latest" => {
             println!("Installing latest version of Node.js");
+            let res = find_latest_version(base_node_url);
+            match res {
+                Ok(v) => {
+                    println!("Latest version is {}", v);
+                    let download_url = utils::node_utils::create_node_windows_download_url(base_node_url, &v);
+                    println!("Downloading from {}", download_url);
+                }
+                Err(e) => {
+                    println!("Error: {}", e);
+                }
+            }
         }
         _ => {
             let res = find_installable_version(base_node_url, &version_str);
@@ -116,4 +127,12 @@ fn find_installable_version(
     println!("Downloading and installing version {}", version);
 
     Ok(version.to_string())
+}
+
+fn find_latest_version(base_node_url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut all_versions: Vec<String> = get_all_versions(base_node_url)?;
+    all_versions.sort_by(|a, b| utils::node_utils::node_version_compare_fn(a, b));
+    let latest_version = all_versions.last().unwrap().to_string();
+
+    Ok(latest_version)
 }
